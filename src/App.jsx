@@ -3,7 +3,7 @@ import { Home, Route } from "lucide-react";
 import Routing from "./Routing";
 import LandingPage from "./Landing";
 import { BrowserRouter as Router, Routes, Route as RouterRoute, Link } from "react-router-dom";
-import { Analytics } from "@vercel/analytics/next"
+import { Analytics } from "@vercel/analytics/react"
 
 export default function App() {
     return <>
