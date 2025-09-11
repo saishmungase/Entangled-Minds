@@ -683,8 +683,6 @@
 
 
 
-
-
 import React, { useState } from "react";
 import { MapContainer, TileLayer, Marker, Polyline, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -705,11 +703,16 @@ const createCustomIcon = (number, isDepot = false) => L.divIcon({
 
 // Vehicle colors for different routes
 const VEHICLE_COLORS = [
-  '#FF6B6B', // Red
-  '#4ECDC4', // Teal
-  '#45B7D1', // Blue
-  '#96CEB4', // Green
-  '#FFEEAD', // Yellow
+  '#FF6B6B',  // Coral Red
+  '#4ECDC4',  // Turquoise
+  '#45B7D1',  // Sky Blue
+  '#96CEB4',  // Sage Green
+  '#FFEEAD',  // Soft Yellow
+  '#9B59B6',  // Purple
+  '#3498DB',  // Blue
+  '#E74C3C',  // Red
+  '#2ECC71',  // Green
+  '#F1C40F'   // Yellow
 ];
 
 export default function MultiRouting() {
@@ -719,6 +722,7 @@ export default function MultiRouting() {
   const [isLoading, setIsLoading] = useState(false);
   const [numVehicles, setNumVehicles] = useState(2);
   const [depot, setDepot] = useState(null);
+  const [activeRoute, setActiveRoute] = useState(null);
   const [optimizationResult, setOptimizationResult] = useState(null);
 
   function MapClickHandler() {
@@ -753,11 +757,132 @@ export default function MultiRouting() {
     if (data.routes && data.routes[0]) {
       return {
         coordinates: data.routes[0].geometry.coordinates.map(([lng, lat]) => [lat, lng]),
-        distance: data.routes[0].distance,
+        distance: data.routes[0].distance / 1000, // Convert to km
         duration: data.routes[0].duration
       };
     }
     return null;
+  }
+
+  function calculateDistance(point1, point2) {
+    const [lat1, lon1] = point1;
+    const [lat2, lon2] = point2;
+    const R = 6371; // Earth's radius in km
+
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }
+
+  // Enhanced route optimization algorithm to ensure unique paths
+  function optimizeRoutesWithUniqueAssignment(depot, points, numVehicles) {
+    const actualVehicles = Math.min(numVehicles, points.length);
+    let unassignedPoints = [...points];
+    let totalDistance = 0;
+
+    // Initialize routes for each vehicle starting from depot
+    const routes = Array(actualVehicles).fill(null).map((_, index) => ({
+      path: [0], // Start with depot (index 0)
+      points: [depot],
+      distance: 0,
+      vehicleId: index
+    }));
+
+    // Create distance matrix for all points (including depot)
+    const allPoints = [depot, ...points.map(p => p.coords)];
+    const distanceMatrix = {};
+    
+    for (let i = 0; i < allPoints.length; i++) {
+      distanceMatrix[i] = {};
+      for (let j = 0; j < allPoints.length; j++) {
+        if (i !== j) {
+          distanceMatrix[i][j] = calculateDistance(allPoints[i], allPoints[j]);
+        }
+      }
+    }
+
+    // Assign points using a balanced approach to avoid route overlap
+    while (unassignedPoints.length > 0) {
+      // Find the vehicle with the shortest current route for balancing
+      const shortestRoute = routes.reduce((min, route) => 
+        route.distance < min.distance ? route : min
+      );
+
+      const currentPoint = shortestRoute.points[shortestRoute.points.length - 1];
+      
+      // Find the nearest unassigned point to current position
+      let nearestPoint = null;
+      let nearestIndex = -1;
+      let minDistance = Infinity;
+
+      unassignedPoints.forEach((point, index) => {
+        const distance = calculateDistance(currentPoint, point.coords);
+        if (distance < minDistance) {
+          minDistance = distance;
+          nearestPoint = point;
+          nearestIndex = index;
+        }
+      });
+
+      if (nearestPoint) {
+        // Add point to the shortest route
+        shortestRoute.path.push(nearestPoint.id);
+        shortestRoute.points.push(nearestPoint.coords);
+        shortestRoute.distance += minDistance;
+
+        // Remove assigned point from unassigned list
+        unassignedPoints.splice(nearestIndex, 1);
+      }
+    }
+
+    // Add return to depot for each route and calculate final distances
+    routes.forEach(route => {
+      if (route.points.length > 1) { // Only add return if route has actual points
+        const lastPoint = route.points[route.points.length - 1];
+        const distanceToDepot = calculateDistance(lastPoint, depot);
+        route.path.push(0); // Return to depot
+        route.points.push(depot);
+        route.distance += distanceToDepot;
+        totalDistance += route.distance;
+      }
+    });
+
+    // Filter out empty routes
+    const validRoutes = routes.filter(route => route.path.length > 2);
+
+    return {
+      routes: validRoutes.map(r => r.path),
+      distances: validRoutes.map(r => r.distance),
+      total_distance: totalDistance,
+      solution_method: "Balanced Nearest Neighbor with Unique Assignment",
+      execution_time: 0,
+      is_quantum_solution: false,
+      notes: "Routes optimized to ensure unique paths for each vehicle"
+    };
+  }
+
+  // Generate dynamic colors if needed
+  function generateDynamicColors(numColors) {
+    const baseColors = [...VEHICLE_COLORS];
+    
+    if (numColors <= baseColors.length) {
+      return baseColors.slice(0, numColors);
+    }
+
+    // Generate additional colors if needed
+    while (baseColors.length < numColors) {
+      const hue = (baseColors.length * 137.508) % 360; // Golden angle approximation
+      const saturation = 70;
+      const lightness = 60;
+      baseColors.push(`hsl(${hue}, ${saturation}%, ${lightness}%)`);
+    }
+
+    return baseColors;
   }
 
   async function fetchOptimizedRoutes() {
@@ -765,33 +890,18 @@ export default function MultiRouting() {
     
     setIsLoading(true);
     try {
-      // In real implementation, this would be your backend API call
-      const result = {
-        "routes": [
-          [0, 2, 3, 0],     // Vehicle 1: Depot → Location 2 → Location 3 → Depot
-          [0, 1, 4, 0]      // Vehicle 2: Depot → Location 1 → Location 4 → Depot
-        ],
-        "distances": [
-          15.7,             // Total distance for Vehicle 1's route
-          12.3              // Total distance for Vehicle 2's route
-        ],
-        "total_distance": 28.0,
-        "solution_method": "Quantum QAOA",
-        "execution_time": 2.35,
-        "is_quantum_solution": true,
-        "notes": "Optimal routes found using QAOA."
-      };
-      
+      const result = optimizeRoutesWithUniqueAssignment(depot, points, numVehicles);
       setOptimizationResult(result);
 
+      // Get colors based on number of vehicles
+      const routeColors = generateDynamicColors(numVehicles);
       const processedRoutes = [];
       
-      // Process each vehicle's route
       for (let vehicleIndex = 0; vehicleIndex < result.routes.length; vehicleIndex++) {
         const vehicleRoute = result.routes[vehicleIndex];
         const routePoints = [];
+        let totalDistance = 0;
         
-        // Get coordinates for each segment
         for (let i = 0; i < vehicleRoute.length - 1; i++) {
           const startPointIndex = vehicleRoute[i];
           const endPointIndex = vehicleRoute[i + 1];
@@ -802,23 +912,24 @@ export default function MultiRouting() {
           const routeSegment = await getRouteBetweenPoints(startPoint, endPoint);
           if (routeSegment) {
             routePoints.push(...routeSegment.coordinates);
+            totalDistance += routeSegment.distance;
           }
           
-          // Add delay between requests
           await new Promise(resolve => setTimeout(resolve, 200));
         }
 
         processedRoutes.push({
           points: routePoints,
           vehicleId: vehicleIndex,
-          color: VEHICLE_COLORS[vehicleIndex % VEHICLE_COLORS.length],
-          distance: result.distances[vehicleIndex]
+          color: routeColors[vehicleIndex],
+          distance: totalDistance,
+          stopCount: vehicleRoute.length - 2 // Exclude depot start and end
         });
       }
 
       setRoutes(processedRoutes);
     } catch (error) {
-      console.error("Error fetching optimized routes:", error);
+      console.error("Error calculating routes:", error);
       alert("Error calculating routes. Please try again.");
     } finally {
       setIsLoading(false);
@@ -827,141 +938,215 @@ export default function MultiRouting() {
 
   return (
     <div className="h-screen bg-black flex overflow-hidden">
-      {/* Sidebar */}
+      {/* Sidebar with Custom Scrollbar */}
       <div className="w-80 bg-gray-900 shadow-2xl relative z-10 flex flex-col border-r border-gray-700">
-        <div className="p-6 space-y-4">
-          {/* Vehicle Selection */}
-          <div className="space-y-2">
-            <label className="text-white font-semibold">Number of Vehicles</label>
-            <div className="flex gap-2">
-              {[1, 2, 3, 4, 5].map((num) => (
-                <button
-                  key={num}
-                  onClick={() => setNumVehicles(num)}
-                  className={`p-3 rounded-lg flex-1 ${
-                    numVehicles === num 
-                      ? 'bg-indigo-500 text-white' 
-                      : 'bg-gray-800 text-gray-400'
-                  }`}
-                >
-                  <Car size={16} className="mx-auto" />
-                  <span className="text-xs mt-1 block">{num}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+        <style jsx>{`
+          .custom-scrollbar {
+            scrollbar-width: thin;
+            scrollbar-color: #4B5563 #1F2937;
+          }
+          .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1F2937;
+            border-radius: 4px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #4B5563;
+            border-radius: 4px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #6B7280;
+          }
+          .marker-pin {
+            width: 30px;
+            height: 30px;
+            border-radius: 50% 50% 50% 0;
+            background: #4F46E5;
+            position: absolute;
+            transform: rotate(-45deg);
+            left: 50%;
+            top: 50%;
+            margin: -15px 0 0 -15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .marker-pin.depot {
+            background: #DC2626;
+          }
+          .marker-pin span {
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+            transform: rotate(45deg);
+          }
+        `}</style>
 
-          {/* Add Points Button */}
-          <button
-            onClick={() => setIsAddingPoints(!isAddingPoints)}
-            className={`w-full p-4 rounded-xl font-semibold flex items-center justify-center gap-3 transition-all ${
-              isAddingPoints 
-                ? 'bg-red-500 text-white' 
-                : 'bg-white text-black hover:bg-gray-100'
-            }`}
-          >
-            {isAddingPoints ? (
-              <><X size={20} />Stop Adding</>
-            ) : (
-              <><Plus size={20} />Add Points</>
-            )}
-          </button>
-
-          {/* Points List */}
-          {(depot || points.length > 0) && (
-            <div className="space-y-4">
-              <h3 className="text-white font-semibold">
-                Locations ({points.length + (depot ? 1 : 0)})
-              </h3>
-              <div className="space-y-2">
-                {depot && (
-                  <div className="flex justify-between items-center p-3 bg-indigo-900/50 rounded-lg text-white">
-                    <span>Depot</span>
-                    <button
-                      onClick={() => {
-                        setDepot(null);
-                        setPoints([]);
-                        setRoutes([]);
-                        setOptimizationResult(null);
-                      }}
-                      className="text-red-400 hover:text-red-300"
-                    >
-                      Reset
-                    </button>
-                  </div>
-                )}
-                {points.map((point) => (
-                  <div
-                    key={point.id}
-                    className="flex justify-between items-center p-3 bg-gray-800 rounded-lg text-white"
+        <div className="h-full flex flex-col overflow-hidden">
+          <div className="p-6 flex-shrink-0">
+            {/* Vehicle Selection */}
+            <div className="space-y-2">
+              <label className="text-white font-semibold">Number of Vehicles</label>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map((num) => (
+                  <button
+                    key={num}
+                    onClick={() => setNumVehicles(num)}
+                    className={`p-3 rounded-lg flex-1 ${
+                      numVehicles === num 
+                        ? 'bg-indigo-500 text-white' 
+                        : 'bg-gray-800 text-gray-400'
+                    }`}
                   >
-                    <span>{point.label}</span>
-                    <button
-                      onClick={() => {
-                        setPoints(points.filter(p => p.id !== point.id));
-                        setRoutes([]);
-                        setOptimizationResult(null);
-                      }}
-                      className="text-red-400 hover:text-red-300"
-                    >
-                      Remove
-                    </button>
-                  </div>
+                    <Car size={16} className="mx-auto" />
+                    <span className="text-xs mt-1 block">{num}</span>
+                  </button>
                 ))}
               </div>
-
-              {/* Optimize Button */}
-              <button
-                onClick={fetchOptimizedRoutes}
-                disabled={!depot || points.length < 1 || isLoading}
-                className={`w-full p-4 rounded-xl font-semibold flex items-center justify-center gap-3 ${
-                  !depot || points.length < 1 || isLoading
-                    ? 'bg-gray-700 text-gray-500'
-                    : 'bg-indigo-500 text-white hover:bg-indigo-600'
-                }`}
-              >
-                {isLoading ? (
-                  <><RotateCw className="animate-spin" size={20} />Optimizing...</>
-                ) : (
-                  'Optimize Routes'
-                )}
-              </button>
             </div>
-          )}
 
-          {/* Results Display */}
-          {optimizationResult && (
-            <div className="space-y-4">
-              <h3 className="text-white font-semibold">Route Summary</h3>
-              <div className="space-y-3">
-                {routes.map((route, index) => (
-                  <div
-                    key={index}
-                    className="bg-gray-800 p-4 rounded-xl border-l-4"
-                    style={{ borderColor: route.color }}
-                  >
-                    <div className="text-white font-medium">Vehicle {index + 1}</div>
-                    <div className="text-gray-400 text-sm">
-                      Distance: {route.distance.toFixed(2)} km
+            {/* Add Points Button */}
+            <button
+              onClick={() => setIsAddingPoints(!isAddingPoints)}
+              className={`w-full p-4 rounded-xl font-semibold flex items-center justify-center gap-3 transition-all mt-4 ${
+                isAddingPoints 
+                  ? 'bg-red-500 text-white' 
+                  : 'bg-white text-black hover:bg-gray-100'
+              }`}
+            >
+              {isAddingPoints ? (
+                <><X size={20} />Stop Adding</>
+              ) : (
+                <><Plus size={20} />Add Points</>
+              )}
+            </button>
+          </div>
+
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pb-6">
+            {/* Points List */}
+            {(depot || points.length > 0) && (
+              <div className="space-y-4">
+                <h3 className="text-white font-semibold sticky top-0 bg-gray-900 py-2 z-10">
+                  Locations ({points.length + (depot ? 1 : 0)})
+                </h3>
+                <div className="space-y-2">
+                  {depot && (
+                    <div className="flex justify-between items-center p-3 bg-indigo-900/50 rounded-lg text-white">
+                      <span>🏭 Depot</span>
+                      <button
+                        onClick={() => {
+                          setDepot(null);
+                          setPoints([]);
+                          setRoutes([]);
+                          setOptimizationResult(null);
+                        }}
+                        className="text-red-400 hover:text-red-300 text-sm"
+                      >
+                        Reset
+                      </button>
                     </div>
-                  </div>
-                ))}
-                <div className="bg-gray-800 p-4 rounded-xl">
-                  <div className="text-gray-400">Total Distance</div>
-                  <div className="text-white font-medium">
-                    {optimizationResult.total_distance.toFixed(2)} km
-                  </div>
-                  <div className="text-xs text-gray-400 mt-2">
-                    {optimizationResult.notes}
+                  )}
+                  {points.map((point) => (
+                    <div
+                      key={point.id}
+                      className="flex justify-between items-center p-3 bg-gray-800 rounded-lg text-white"
+                    >
+                      <span>📍 {point.label}</span>
+                      <button
+                        onClick={() => {
+                          setPoints(points.filter(p => p.id !== point.id));
+                          setRoutes([]);
+                          setOptimizationResult(null);
+                        }}
+                        className="text-red-400 hover:text-red-300 text-sm"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Optimize Button */}
+                <button
+                  onClick={fetchOptimizedRoutes}
+                  disabled={!depot || points.length < 1 || isLoading}
+                  className={`w-full p-4 rounded-xl font-semibold flex items-center justify-center gap-3 ${
+                    !depot || points.length < 1 || isLoading
+                      ? 'bg-gray-700 text-gray-500'
+                      : 'bg-indigo-500 text-white hover:bg-indigo-600'
+                  }`}
+                >
+                  {isLoading ? (
+                    <><RotateCw className="animate-spin" size={20} />Optimizing...</>
+                  ) : (
+                    'Optimize Routes'
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* Results Display */}
+            {optimizationResult && (
+              <div className="space-y-4 mt-6">
+                <h3 className="text-white font-semibold sticky top-0 bg-gray-900 py-2 z-10">
+                  Route Summary
+                </h3>
+                <div className="space-y-3">
+                  {routes.map((route, index) => (
+                    <div
+                      key={index}
+                      className={`bg-gray-800 p-4 rounded-xl border-l-4 cursor-pointer transition-all ${
+                        activeRoute === index ? 'ring-2 ring-white' : ''
+                      }`}
+                      style={{ borderColor: route.color }}
+                      onClick={() => setActiveRoute(activeRoute === index ? null : index)}
+                    >
+                      <div className="flex justify-between items-center mb-2">
+                        <div className="text-white font-medium">🚛 Vehicle {index + 1}</div>
+                        {activeRoute === index && (
+                          <div className="bg-white text-black text-xs px-2 py-1 rounded-full">
+                            Active
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <div className="text-gray-400">
+                          Stops: {route.stopCount || 0}
+                        </div>
+                        <div className="text-gray-400">
+                          {route.distance.toFixed(2)} km
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  <button
+                    onClick={() => setActiveRoute(null)}
+                    className="w-full p-3 rounded-xl bg-gray-800 text-white hover:bg-gray-700 transition-all"
+                  >
+                    Show All Routes
+                  </button>
+
+                  <div className="bg-gray-800 p-4 rounded-xl">
+                    <div className="text-gray-400 text-sm">Total Distance</div>
+                    <div className="text-white font-medium text-lg">
+                      {optimizationResult.total_distance.toFixed(2)} km
+                    </div>
+                    <div className="text-xs text-gray-400 mt-2">
+                      {optimizationResult.notes}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Map */}
+      {/* Map section */}
       <div className="flex-1 relative">
         <MapContainer 
           center={[19.076, 72.8777]} 
@@ -990,13 +1175,16 @@ export default function MultiRouting() {
 
           {/* Render Routes */}
           {routes.map((route, index) => (
-            <Polyline
-              key={index}
-              positions={route.points}
-              color={route.color}
-              weight={4}
-              opacity={0.8}
-            />
+            (activeRoute === null || activeRoute === index) && (
+              <Polyline
+                key={`route-${index}`}
+                positions={route.points}
+                color={route.color}
+                weight={activeRoute === index ? 6 : 4}
+                opacity={activeRoute === index ? 1 : 0.8}
+                dashArray={activeRoute === index ? '0' : '10, 10'}
+              />
+            )
           ))}
         </MapContainer>
       </div>
