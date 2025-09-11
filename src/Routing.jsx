@@ -915,7 +915,7 @@ export default function MultiRouting() {
             totalDistance += routeSegment.distance;
           }
           
-          await new Promise(resolve => setTimeout(resolve, 200));
+          await new Promise(resolve => setTimeout(resolve, 2000));
         }
 
         processedRoutes.push({
