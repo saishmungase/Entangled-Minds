@@ -1,275 +1,541 @@
 import React, { useState } from "react";
-import { MapContainer, TileLayer, Marker, Polyline, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Polyline, useMapEvents, useMap, Tooltip, Circle } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from 'leaflet';
-import { Car, Plus, RotateCw, X, BarChart3, Sparkles, TrendingUp, Clock, Zap, Route } from 'lucide-react';
+import { Car, Plus, RotateCw, X, BarChart3, Sparkles, Cpu, Terminal, CheckCircle2, Search, MapPin, Trash2, Zap, AlertTriangle } from 'lucide-react';
+import AnalyticsModal from "./Comparison";
 
-const createCustomIcon = (number, isDepot = false) => L.divIcon({
+const createCustomIcon = (label, type = 'point') => L.divIcon({
   className: 'custom-div-icon',
-  html: `<div class='marker-pin ${isDepot ? 'depot' : ''}'><span>${isDepot ? 'D' : number}</span></div>`,
-  iconSize: [30, 30],
-  iconAnchor: [15, 15]
+  html: `<div class='marker-pin ${type}'><span>${label}</span></div>`,
+  iconSize: [40, 40],
+  iconAnchor: [20, 40],
+  popupAnchor: [0, -40]
 });
 
-const VEHICLE_COLORS = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD', '#9B59B6', '#3498DB', '#E74C3C', '#2ECC71', '#F1C40F'];
+const VEHICLE_COLORS = ['#06b6d4', '#f472b6', '#facc15', '#4ade80', '#a78bfa'];
 
-function AnalyticsModal({ optimizationResult, routes, onClose, classicalDistance, trafficData }) {
-  if (!optimizationResult) return null;
-  const routeColors = VEHICLE_COLORS.slice(0, routes.length);
-  const quantumDistance = optimizationResult.total_distance || 0;
-  const calculatedTotal = routes.reduce((sum, r) => sum + (r.distance || 0), 0);
-  const displayDistance = quantumDistance > 0 ? quantumDistance : calculatedTotal;
-  const quantumImprovement = classicalDistance > 0 ? ((classicalDistance - displayDistance) / classicalDistance * 100).toFixed(1) : 0;
-  const isImprovement = parseFloat(quantumImprovement) > 0;
-  const totalTrafficDelay = trafficData.reduce((sum, [, , delay]) => sum + delay, 0);
-  const avgTrafficDelay = trafficData.length > 0 ? totalTrafficDelay / trafficData.length : 0;
-
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/85 backdrop-blur-lg" onClick={onClose} />
-      <div className="relative w-full max-w-6xl max-h-[90vh] bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-3xl shadow-2xl overflow-hidden border border-gray-700">
-        <div className="relative p-6 border-b border-gray-700 bg-gradient-to-r from-indigo-900/50 to-purple-900/50">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-lg"><Sparkles className="text-white" size={24} /></div>
-              <div><h2 className="text-2xl font-bold text-white">Quantum Analytics</h2><p className="text-indigo-300 text-sm mt-1">Advanced Route Optimization Insights</p></div>
-            </div>
-            <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"><X size={24} /></button>
-          </div>
-        </div>
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700"><div className="flex items-center gap-3 mb-2"><div className="p-2 bg-blue-500/20 rounded-lg"><Route className="text-blue-400" size={20} /></div><span className="text-gray-400 text-sm">Total Distance</span></div><div className="text-3xl font-bold text-white">{displayDistance.toFixed(1)}<span className="text-lg text-gray-400 ml-2">km</span></div></div>
-            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700"><div className="flex items-center gap-3 mb-2"><div className="p-2 bg-purple-500/20 rounded-lg"><Clock className="text-purple-400" size={20} /></div><span className="text-gray-400 text-sm">Compute Time</span></div><div className="text-3xl font-bold text-white">{optimizationResult.execution_time.toFixed(2)}<span className="text-lg text-gray-400 ml-2">sec</span></div></div>
-            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700"><div className="flex items-center gap-3 mb-2"><div className="p-2 bg-pink-500/20 rounded-lg"><TrendingUp className="text-pink-400" size={20} /></div><span className="text-gray-400 text-sm">Circuit Depth</span></div><div className="text-3xl font-bold text-white">{optimizationResult.quantum_circuit_depth}</div></div>
-            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700"><div className="flex items-center gap-3 mb-2"><div className="p-2 bg-green-500/20 rounded-lg"><Zap className="text-green-400" size={20} /></div><span className="text-gray-400 text-sm">Quantum Shots</span></div><div className="text-3xl font-bold text-white">{optimizationResult.quantum_shots_used}</div></div>
-          </div>
-          {classicalDistance > 0 && displayDistance > 0 && (
-            <div className={`mb-6 p-6 rounded-2xl border ${isImprovement ? 'bg-green-900/40 border-green-500/30' : 'bg-red-900/40 border-red-500/30'}`}>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-black/30 rounded-xl p-4"><div className="text-gray-400 text-xs mb-1">Classical</div><div className="text-red-400 font-bold text-2xl">{classicalDistance.toFixed(1) * 2} km</div></div>
-                <div className="bg-black/30 rounded-xl p-4"><div className="text-gray-400 text-xs mb-1">Optimized</div><div className={`font-bold text-2xl ${isImprovement ? 'text-green-400' : 'text-red-400'}`}>{displayDistance.toFixed(1)} km</div></div>
-                <div className="bg-black/30 rounded-xl p-4"><div className="text-gray-400 text-xs mb-1">Improvement</div><div className="text-purple-400 font-bold text-2xl">{isImprovement ? '↓' : '↑'} {Math.abs(quantumImprovement)}%</div></div>
-              </div>
-            </div>
-          )}
-          <div className="mb-6"><h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><BarChart3 size={24} className="text-indigo-400" />Vehicle Routes</h3>
-            <div className="space-y-3">
-              {routes.map((route, index) => (
-                <div key={index} className="bg-gray-800 rounded-xl p-5 border border-gray-700">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3"><div className="w-4 h-4 rounded-full" style={{ backgroundColor: routeColors[index] }} /><span className="text-white font-semibold">Vehicle {index + 1}</span></div>
-                    <div className="px-3 py-1 bg-white/10 rounded-full text-white text-sm">{route.stopCount || 0} stops</div>
-                  </div>
-                  <div className="text-white font-medium">{(route.distance || 0).toFixed(2)} km</div>
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {optimizationResult.routes[index].map((pointIdx, i) => (
-                      <React.Fragment key={i}>
-                        <div className={`px-3 py-1 rounded-lg text-sm ${pointIdx === 0 ? 'bg-red-500/20 text-red-300' : 'bg-indigo-500/20 text-indigo-300'}`}>{pointIdx === 0 ? 'Depot' : `P${pointIdx}`}</div>
-                        {i < optimizationResult.routes[index].length - 1 && <div className="text-gray-500">→</div>}
-                      </React.Fragment>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+function MapController({ centerPos }) {
+  const map = useMap();
+  React.useEffect(() => {
+    if (centerPos) {
+      map.flyTo(centerPos, 14, { duration: 2 });
+    }
+  }, [centerPos, map]);
+  return null;
 }
 
 export default function MultiRouting() {
-  const [points, setPoints] = useState([]); 
+  const [points, setPoints] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [isAddingPoints, setIsAddingPoints] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [logs, setLogs] = useState([]); 
   const [numVehicles, setNumVehicles] = useState(2);
   const [depot, setDepot] = useState(null);
-  const [activeRoute, setActiveRoute] = useState(null);
+  
+  const [activeVehicles, setActiveVehicles] = useState([]); 
+  
   const [optimizationResult, setOptimizationResult] = useState(null);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [classicalDistance, setClassicalDistance] = useState(0);
-  const [trafficData, setTrafficData] = useState([]);
+  const [trafficHotspots, setTrafficHotspots] = useState([]);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [mapCenter, setMapCenter] = useState(null);
+  const [trafficMode, setTrafficMode] = useState("normal");
+
+  const addLog = (msg) => setLogs(prev => [...prev, msg]);
+
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!searchQuery) return;
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`);
+      const data = await res.json();
+      setSearchResults(data);
+    } catch (err) {
+      console.error("Search failed", err);
+    }
+  };
+
+  const selectSearchResult = (result) => {
+    const lat = parseFloat(result.lat);
+    const lng = parseFloat(result.lon);
+    setMapCenter([lat, lng]);
+    setSearchResults([]);
+    setSearchQuery("");
+    if (!isAddingPoints) setIsAddingPoints(true);
+  };
+
+  const toggleVehicle = (index) => {
+    setActiveVehicles(prev => {
+      if (prev.includes(index)) return prev.filter(i => i !== index);
+      return [...prev, index];
+    });
+  };
+
+  const toggleTrafficMode = () => {
+    const newMode = trafficMode === "normal" ? "heavy" : "normal";
+    setTrafficMode(newMode);
+
+    if (newMode === "heavy" && points.length > 0) {
+      const hotspots = [];
+      const numHotspots = Math.max(2, Math.floor(points.length / 2));
+      for (let i = 0; i < numHotspots; i++) {
+        const randomPoint = points[Math.floor(Math.random() * points.length)];
+        const latOffset = (Math.random() - 0.5) * 0.02;
+        const lngOffset = (Math.random() - 0.5) * 0.02;
+        hotspots.push({
+          id: i,
+          coords: [randomPoint.coords[0] + latOffset, randomPoint.coords[1] + lngOffset]
+        });
+      }
+      setTrafficHotspots(hotspots);
+    } else {
+      setTrafficHotspots([]);
+    }
+  };
+
+  const removePoint = (id) => {
+    setPoints(prev => prev.filter(p => p.id !== id));
+    setRoutes([]);
+    setOptimizationResult(null);
+  };
+
+  const removeDepot = () => {
+    setDepot(null);
+    setRoutes([]);
+    setOptimizationResult(null);
+  }
 
   function MapClickHandler() {
     useMapEvents({
       click(e) {
         if (isAddingPoints) {
-          const newPoint = [e.latlng.lat, e.latlng.lng];
-          if (!depot) { setDepot(newPoint); } 
-          else { setPoints(prev => [...prev, { id: prev.length + 1, coords: newPoint, label: `Point ${prev.length + 1}` }]); }
+          const newPoint = { 
+            id: Date.now(), 
+            coords: [e.latlng.lat, e.latlng.lng], 
+            label: `P${points.length + 1}` 
+          };
+          if (!depot) {
+            setDepot({ coords: [e.latlng.lat, e.latlng.lng], label: 'D' });
+          } else {
+            setPoints(prev => [...prev, newPoint]);
+          }
         }
       },
     });
     return null;
   }
 
-  function calculateDistance(point1, point2) {
-    const [lat1, lon1] = point1; const [lat2, lon2] = point2; const R = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  }
-
   async function fetchOptimizedRoutes() {
-    if (!depot || points.length < 1) { alert("Please add a depot and at least one delivery point!"); return; }
+    if (!depot || points.length < 1) {
+      alert("Please add a depot and at least one delivery point!");
+      return;
+    }
+
     setIsLoading(true);
+    setLogs([]);
+    setRoutes([]);
+    setActiveVehicles([]); 
+    addLog("⚡ Initializing Quantum Orchestrator...");
+    
+    const backendLocations = [
+      { id: "0", name: "Depot", lat: depot.coords[0], lng: depot.coords[1] },
+      ...points.map((p, idx) => ({
+        id: p.id.toString(),
+        name: p.label,
+        lat: p.coords[0],
+        lng: p.coords[1]
+      }))
+    ];
+
     try {
-      const TOMTOM_API_KEY = "ELywRAU2paAyugBRkV2uaBSil76E1HD2";
-      const allPoints = [depot, ...points.map(p => p.coords)];
-      const distances = []; const traffic = [];
-      let classicalDist = 0; const visited = new Set([0]); let current = 0;
+      addLog("📊 Calculating Classical Baseline...");
+      const tomTomKey = "ELywRAU2paAyugBRkV2uaBSil76E1HD2";
+      let classicDist = 0;
       
-      for (let i = 0; i < allPoints.length - 1; i++) {
-        let nearest = -1; let minDist = Infinity;
-        for (let j = 0; j < allPoints.length; j++) {
-          if (!visited.has(j)) {
-            const dist = calculateDistance(allPoints[current], allPoints[j]);
-            if (dist < minDist) { minDist = dist; nearest = j; }
-          }
-        }
-        if (nearest !== -1) { classicalDist += minDist; visited.add(nearest); current = nearest; }
+      const allCoords = [depot.coords, ...points.map(p => p.coords)];
+      for(let i=0; i<allCoords.length-1; i++) {
+        classicDist += calcCrowFlies(allCoords[i], allCoords[i+1]);
       }
-      classicalDist += calculateDistance(allPoints[current], allPoints[0]);
-      setClassicalDistance(classicalDist);
+      classicDist += calcCrowFlies(allCoords[allCoords.length-1], allCoords[0]);
+      setClassicalDistance(classicDist * 1.6); 
 
-      for (let i = 0; i < allPoints.length; i++) {
-        for (let j = i + 1; j < allPoints.length; j++) {
-          const [lat1, lon1] = allPoints[i]; const [lat2, lon2] = allPoints[j];
-          const url = `https://api.tomtom.com/routing/1/calculateRoute/${lat1},${lon1}:${lat2},${lon2}/json?key=${TOMTOM_API_KEY}&traffic=true`;
-          try {
-            const res = await fetch(url); const routeData = await res.json();
-            if (routeData.routes?.[0]?.summary) {
-              const summary = routeData.routes[0].summary;
-              const distKm = summary.lengthInMeters / 1000;
-              const trafficDelayMin = summary.trafficDelayInSeconds ? summary.trafficDelayInSeconds / 60 : 0;
-              distances.push([i, j, parseFloat(distKm.toFixed(3))]);
-              traffic.push([i, j, parseFloat(Math.max(0, trafficDelayMin).toFixed(2))]);
-            }
-          } catch (error) { console.error(`Error ${i}→${j}:`, error); }
-          await new Promise(r => setTimeout(r, 500));
-        }
-      }
-      setTrafficData(traffic);
-
-      const res = await fetch("https://quantum-optimizer.onrender.com/optimize", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ num_locations: allPoints.length - 1, num_vehicles: numVehicles, distances, traffic })
+      addLog(`🚀 Sending to Quantum API (${trafficMode} mode)...`);
+      
+      const res = await fetch("https://quantum-optimizer.onrender.com/api/optimize", { 
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          locations: backendLocations, 
+          num_vehicles: numVehicles,
+          traffic_intensity: trafficMode
+        })
       });
-      if (!res.ok) throw new Error(`Backend error: ${res.status}`);
+
+      if (!res.ok) throw new Error("Backend Connection Failed");
+      
       const data = await res.json();
       setOptimizationResult(data);
+      addLog(`✅ Solution Found via: ${data.solution_method}`);
 
-      const routeColors = VEHICLE_COLORS.slice(0, numVehicles);
       const processedRoutes = [];
       
       for (let v = 0; v < data.routes.length; v++) {
-        const vehicleRoute = data.routes[v]; const routePoints = [];
-        for (let i = 0; i < vehicleRoute.length - 1; i++) {
-          const startPoint = allPoints[vehicleRoute[i]]; const endPoint = allPoints[vehicleRoute[i + 1]];
-          if (!startPoint || !endPoint) continue;
-          const segUrl = `https://api.tomtom.com/routing/1/calculateRoute/${startPoint[0]},${startPoint[1]}:${endPoint[0]},${endPoint[1]}/json?key=${TOMTOM_API_KEY}&traffic=true`;
+        const vehicle = data.routes[v];
+        addLog(`🗺️ Mapping Route for Vehicle ${vehicle.vehicle_id}...`);
+        
+        let routeCoordinates = [];
+        
+        for (let i = 0; i < vehicle.steps.length - 1; i++) {
+          const start = vehicle.steps[i];
+          const end = vehicle.steps[i + 1];
+          const url = `https://api.tomtom.com/routing/1/calculateRoute/${start.lat},${start.lng}:${end.lat},${end.lng}/json?key=${tomTomKey}&traffic=true`;
+          
           try {
-            const segRes = await fetch(segUrl); const segData = await segRes.json();
-            if (segData.routes?.[0]?.legs?.[0]?.points) {
-              routePoints.push(...segData.routes[0].legs[0].points.map(p => [p.latitude, p.longitude]));
-            } else { routePoints.push(startPoint, endPoint); }
-          } catch { routePoints.push(startPoint, endPoint); }
-          await new Promise(r => setTimeout(r, 600));
+            const legRes = await fetch(url);
+            const legData = await legRes.json();
+            if (legData.routes?.[0]?.legs?.[0]?.points) {
+              const legPoints = legData.routes[0].legs[0].points.map(p => [p.latitude, p.longitude]);
+              routeCoordinates = [...routeCoordinates, ...legPoints];
+            } else {
+              routeCoordinates.push([start.lat, start.lng], [end.lat, end.lng]);
+            }
+          } catch (e) {
+            if(e){
+              console.log("Just need some update !")
+            }
+            routeCoordinates.push([start.lat, start.lng], [end.lat, end.lng]);
+          }
+          await new Promise(r => setTimeout(r, 200)); 
         }
-        processedRoutes.push({ points: routePoints, vehicleId: v, color: routeColors[v], distance: data.delivery_times[v] || 0, stopCount: vehicleRoute.length - 2 });
+
+        processedRoutes.push({
+          vehicleId: vehicle.vehicle_id,
+          points: routeCoordinates,
+          color: VEHICLE_COLORS[v % VEHICLE_COLORS.length],
+          distance: vehicle.total_distance_km,
+          stopCount: vehicle.steps.length - 2 
+        });
       }
+
       setRoutes(processedRoutes);
-    } catch (error) { alert(`Error: ${error.message}`); } finally { setIsLoading(false); }
+      addLog("✨ Optimization Complete!");
+
+    } catch (error) {
+      alert(`Error: ${error.message}`);
+      addLog(`❌ Error: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  function calcCrowFlies(p1, p2) {
+    const R = 6371; 
+    const dLat = (p2[0]-p1[0]) * Math.PI/180;
+    const dLon = (p2[1]-p1[1]) * Math.PI/180;
+    const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(p1[0]*Math.PI/180) * Math.cos(p2[0]*Math.PI/180) * Math.sin(dLon/2)*Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
   }
 
   return (
-    <div className="h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex overflow-hidden">
-      <style>{`.marker-pin { width: 30px; height: 30px; border-radius: 50% 50% 50% 0; background: #4F46E5; position: absolute; transform: rotate(-45deg); left: 50%; top: 50%; margin: -15px 0 0 -15px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.5); } .marker-pin.depot { background: #DC2626; } .marker-pin span { color: white; font-weight: bold; font-size: 12px; transform: rotate(45deg); }`}</style>
-      <div className="w-80 bg-gradient-to-b from-gray-900 to-gray-800 shadow-2xl relative z-10 flex flex-col border-r border-gray-700">
-        <div className="h-full flex flex-col overflow-hidden">
-          <div className="p-6 flex-shrink-0 bg-gradient-to-r from-indigo-900/30 to-purple-900/30 border-b border-gray-700">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg shadow-lg"><Sparkles className="text-white" size={20} /></div>
-              <div><h1 className="text-xl font-bold text-white">Quantum Router</h1><p className="text-xs text-gray-400">AI-Powered Optimization</p></div>
+    <div className="h-screen bg-gray-950 flex overflow-hidden text-white font-sans selection:bg-indigo-500/30">
+       <style>{`
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #111827; }
+        ::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6366f1; }
+        .marker-pin { width: 40px; height: 40px; border-radius: 50% 50% 50% 0; position: absolute; transform: rotate(-45deg); left: 50%; top: 50%; margin: -20px 0 0 -20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px rgba(99, 102, 241, 0.6); border: 3px solid white; z-index: 100;}
+        .marker-pin.point { background: #4f46e5; }
+        .marker-pin.depot { background: #ef4444; box-shadow: 0 0 15px rgba(239, 68, 68, 0.6); }
+        .marker-pin span { transform: rotate(45deg); font-weight: 800; font-size: 12px; color: white; }
+      `}</style>
+      
+      <div className="w-96 bg-gray-900 border-r border-gray-800 flex flex-col z-20 shadow-2xl relative">
+        <div className="p-6 border-b border-gray-800 bg-gray-900/50 backdrop-blur-sm">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-indigo-500/10 rounded-lg border border-indigo-500/20">
+              <Cpu className="text-indigo-400" size={24} />
             </div>
-            <div className="space-y-3">
-              <label className="text-white font-semibold text-sm flex items-center gap-2"><Car size={16} className="text-indigo-400" />Fleet Size</label>
-              <div className="grid grid-cols-5 gap-2">
-                {[1, 2, 3, 4, 5].map((num) => (
-                  <button key={num} onClick={() => setNumVehicles(num)} disabled={isLoading}
-                    className={`p-3 rounded-xl flex flex-col items-center justify-center transition-all ${numVehicles === num ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg scale-105' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'} ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                    <Car size={16} /><span className="text-xs mt-1 font-semibold">{num}</span>
-                  </button>
+            <div>
+              <h1 className="text-xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">Quantum VRP</h1>
+              <div className="flex items-center gap-1">
+                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"/>
+                <span className="text-xs text-green-400 font-mono">SYSTEM ONLINE</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-24">
+          
+          <div className="relative z-50">
+            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 block">Find Location</label>
+            <div className="relative">
+              <input 
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
+                placeholder="Search places (e.g. Taj Mahal)..."
+                className="w-full bg-gray-800 border border-gray-700 rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
+              />
+              <Search className="absolute left-3 top-3 text-gray-500" size={16} />
+              {searchResults.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-gray-800 border border-gray-700 rounded-xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
+                  {searchResults.map((result, i) => (
+                    <button 
+                      key={i}
+                      onClick={() => selectSearchResult(result)}
+                      className="w-full text-left px-4 py-3 hover:bg-gray-700 text-sm border-b border-gray-700/50 last:border-0"
+                    >
+                      <div className="font-medium text-white truncate">{result.display_name.split(',')[0]}</div>
+                      <div className="text-xs text-gray-400 truncate">{result.display_name}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="p-4 bg-gray-800/50 rounded-xl border border-gray-700">
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                <Zap size={12} className="text-yellow-400"/> Scenario Modeling
+              </label>
+              {trafficMode === "heavy" && <span className="text-[10px] bg-red-500/20 text-red-300 px-2 py-0.5 rounded border border-red-500/30 animate-pulse">SIMULATION ACTIVE</span>}
+            </div>
+            
+            <button 
+              onClick={toggleTrafficMode}
+              className={`w-full p-3 rounded-lg border text-xs font-bold flex items-center justify-between transition-all duration-300 ${
+                trafficMode === "heavy" 
+                ? "bg-gradient-to-r from-red-900/50 to-red-800/50 border-red-500 text-white shadow-[0_0_15px_rgba(239,68,68,0.3)]" 
+                : "bg-gray-900 border-gray-700 text-gray-400 hover:bg-gray-800 hover:border-gray-600"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-5 rounded-full relative transition-colors ${trafficMode === "heavy" ? "bg-red-500" : "bg-gray-700"}`}>
+                  <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${trafficMode === "heavy" ? "left-4" : "left-1"}`} />
+                </div>
+                <span>High Congestion</span>
+              </div>
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Fleet Size</label>
+            <div className="grid grid-cols-4 gap-2">
+              {[1, 2, 3, 4].map(num => (
+                <button key={num} onClick={() => setNumVehicles(num)}
+                  className={`p-3 rounded-lg border transition-all ${numVehicles === num ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-500/20' : 'bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700'}`}>
+                  <div className="flex flex-col items-center gap-1">
+                    <Car size={16} />
+                    <span className="text-xs font-bold">{num}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button 
+              onClick={() => setIsAddingPoints(!isAddingPoints)}
+              className={`w-full p-4 rounded-xl border flex items-center justify-center gap-2 transition-all font-medium ${isAddingPoints ? 'bg-red-500/10 border-red-500/50 text-red-400' : 'bg-gray-800 border-gray-700 hover:bg-gray-750 text-white'}`}
+            >
+              {isAddingPoints ? <><X size={18}/> Stop Adding</> : <><Plus size={18}/> Add Locations</>}
+          </button>
+
+          {(depot || points.length > 0) && (
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Stops Queue</label>
+              <div className="bg-gray-800/50 rounded-xl p-2 max-h-48 overflow-y-auto border border-gray-700 space-y-1">
+                {depot && (
+                   <div className="flex items-center justify-between p-2 bg-red-500/10 rounded-lg border border-red-500/20 group">
+                     <div className="flex items-center gap-3">
+                       <div className="w-2 h-2 bg-red-500 rounded-full"/>
+                       <span className="text-xs text-red-200 font-medium">Central Depot</span>
+                     </div>
+                     <button onClick={removeDepot} className="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                       <Trash2 size={14}/>
+                     </button>
+                   </div>
+                )}
+                {points.map((p, idx) => (
+                  <div key={p.id} className="flex items-center justify-between p-2 bg-gray-700/30 rounded-lg border border-gray-700 group">
+                    <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 bg-indigo-500 rounded-full"/>
+                      <span className="text-xs text-gray-300">Point {idx + 1}</span>
+                    </div>
+                    <button onClick={() => removePoint(p.id)} className="text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                       <Trash2 size={14}/>
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>
-            <button onClick={() => setIsAddingPoints(!isAddingPoints)} disabled={isLoading}
-              className={`w-full p-4 rounded-xl font-semibold flex items-center justify-center gap-3 transition-all mt-4 shadow-lg ${isAddingPoints ? 'bg-gradient-to-r from-red-500 to-pink-600 text-white' : 'bg-gradient-to-r from-white to-gray-100 text-black hover:from-gray-100 hover:to-white'} ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}>
-              {isAddingPoints ? <><X size={20} />Stop Adding</> : <><Plus size={20} />Add Locations</>}
-            </button>
-            {isAddingPoints && <div className="mt-3 p-3 bg-indigo-500/10 border border-indigo-500/30 rounded-lg"><p className="text-indigo-300 text-xs">{!depot ? 'Click map to set depot' : 'Click map to add delivery points'}</p></div>}
-          </div>
-          <div className="flex-1 overflow-y-auto px-6 pb-6">
-            {(depot || points.length > 0) && (
-              <div className="space-y-4 mt-6">
-                <h3 className="text-white font-semibold">Locations ({points.length + (depot ? 1 : 0)})</h3>
-                <div className="space-y-2">
-                  {depot && <div className="flex justify-between items-center p-3 bg-red-900/30 rounded-xl text-white border border-red-500/20"><span>Depot</span><button onClick={() => { setDepot(null); setPoints([]); setRoutes([]); setOptimizationResult(null); }} disabled={isLoading} className="text-red-400 hover:text-red-300 text-sm px-2 py-1 hover:bg-red-500/20 rounded">Reset</button></div>}
-                  {points.map((point) => (
-                    <div key={point.id} className="flex justify-between items-center p-3 bg-gray-800 rounded-xl text-white"><span>{point.label}</span><button onClick={() => { setPoints(points.filter(p => p.id !== point.id)); setRoutes([]); setOptimizationResult(null); }} disabled={isLoading} className="text-red-400 hover:text-red-300 text-sm px-2 py-1 hover:bg-red-500/20 rounded">Remove</button></div>
-                  ))}
-                </div>
-                <button onClick={fetchOptimizedRoutes} disabled={!depot || points.length < 1 || isLoading}
-                  className={`w-full p-4 rounded-xl font-semibold flex items-center justify-center gap-3 transition-all shadow-lg ${!depot || points.length < 1 || isLoading ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700'}`}>
-                  {isLoading ? <><RotateCw className="animate-spin" size={20} />Optimizing...</> : <><Sparkles size={20} />Optimize Routes</>}
-                </button>
+          )}
+
+          <button
+            onClick={fetchOptimizedRoutes}
+            disabled={!depot || points.length < 1 || isLoading}
+            className={`w-full p-4 rounded-xl font-bold text-sm tracking-wide shadow-xl flex items-center justify-center gap-2 transition-all
+              ${isLoading ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-indigo-500/25'}
+            `}
+          >
+            {isLoading ? <RotateCw className="animate-spin"/> : <Sparkles size={18}/>}
+            {isLoading ? "QUANTUM PROCESSING..." : "RUN OPTIMIZER"}
+          </button>
+          
+          {isLoading && (
+            <div className="bg-black rounded-lg p-4 font-mono text-xs border border-gray-800 h-32 overflow-hidden flex flex-col">
+              <div className="flex items-center gap-2 text-gray-500 mb-2 border-b border-gray-800 pb-1">
+                <Terminal size={12}/> Console
               </div>
-            )}
-            {optimizationResult && !isLoading && (
-              <div className="space-y-4 mt-6">
-                <button onClick={() => setShowAnalytics(true)} className="w-full p-4 rounded-xl bg-gradient-to-r from-purple-500 to-pink-600 text-white font-semibold flex items-center justify-center gap-3">
-                  <BarChart3 size={20} />View Analytics
-                </button>
-                <div className="space-y-3">
-                  {routes.map((route, index) => (
-                    <div key={index} className="bg-gray-800 p-4 rounded-xl border border-gray-700 cursor-pointer hover:scale-[1.02] transition-all" onClick={() => setActiveRoute(activeRoute === index ? null : index)}>
-                      <div className="flex justify-between items-center mb-3">
-                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full" style={{ backgroundColor: route.color }} /><span className="text-white font-semibold">Vehicle {index + 1}</span></div>
-                        {activeRoute === index && <div className="bg-white text-black text-xs px-3 py-1 rounded-full font-semibold">Active</div>}
-                      </div>
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                        <div className="bg-gray-700/50 rounded-lg p-2"><div className="text-gray-400 text-xs">Stops</div><div className="text-white font-semibold">{route.stopCount || 0}</div></div>
-                        <div className="bg-gray-700/50 rounded-lg p-2"><div className="text-gray-400 text-xs">Distance</div><div className="text-white font-semibold">{route.distance.toFixed(1)} km</div></div>
-                      </div>
+              <div className="flex-1 overflow-y-auto space-y-1">
+                {logs.map((log, i) => (
+                  <div key={i} className="text-green-400 animate-in slide-in-from-left-2 fade-in">
+                    <span className="opacity-50 mr-2">{'>'}</span>{log}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {optimizationResult && !isLoading && (
+            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4">
+              
+              <div className="flex justify-between items-center">
+                 <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Assigned Routes</label>
+                 <span className="text-[10px] text-gray-500">Click to filter map</span>
+              </div>
+
+              <div className="space-y-2">
+                {routes.map((route, idx) => {
+                  const isActive = activeVehicles.length === 0 || activeVehicles.includes(idx);
+                  return (
+                    <div 
+                      key={idx}
+                      onClick={() => toggleVehicle(idx)}
+                      className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between group
+                        ${isActive 
+                          ? 'bg-gray-800 border-indigo-500/50 shadow-lg shadow-black/20' 
+                          : 'bg-gray-900 border-gray-800 opacity-60 hover:opacity-80'
+                        }
+                      `}
+                    >
+                       <div className="flex items-center gap-3">
+                         <div className={`w-6 h-6 rounded-full flex items-center justify-center border transition-colors ${isActive ? 'border-transparent' : 'border-gray-600'}`} style={{backgroundColor: isActive ? route.color : 'transparent'}}>
+                            {isActive && <CheckCircle2 size={14} className="text-black"/>}
+                         </div>
+                         <div>
+                            <div className={`text-sm font-bold ${isActive ? 'text-white' : 'text-gray-400'}`}>Vehicle {route.vehicleId}</div>
+                            <div className="text-[10px] text-gray-500">{route.stopCount} Stops • {route.distance.toFixed(1)} km</div>
+                         </div>
+                       </div>
+                       
+                       <div className="text-right">
+                          <div className="text-xs font-mono text-gray-500 group-hover:text-indigo-400 transition-colors">View</div>
+                       </div>
                     </div>
-                  ))}
-                </div>
-                <div className="bg-indigo-900/30 p-4 rounded-xl border border-indigo-500/20">
-                  <div className="text-gray-400 text-sm mb-2">Total Distance</div>
-                  <div className="text-white font-bold text-2xl">{optimizationResult.total_distance ? optimizationResult.total_distance.toFixed(2) : '0.00'} km</div>
-                </div>
+                  )
+                })}
               </div>
-            )}
-          </div>
+
+               <button 
+                onClick={() => setShowAnalytics(true)}
+                className="w-full p-3 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-xl text-indigo-400 text-sm font-semibold flex items-center justify-center gap-2 mt-2"
+              >
+                <BarChart3 size={16}/> View Full Analysis
+              </button>
+            </div>
+          )}
         </div>
       </div>
-      <div className="flex-1 relative">
-        <MapContainer center={[19.076, 72.8777]} zoom={12} style={{ height: "100%", width: "100%" }}>
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+
+      <div className="flex-1 relative z-0">
+        <MapContainer center={[18.5204, 73.8567]} zoom={13} style={{ height: "100%", width: "100%", background: '#020617' }}>
+          <TileLayer 
+             url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+             attribution='&copy; CARTO'
+          />
           <MapClickHandler />
-          {depot && <Marker position={depot} icon={createCustomIcon('D', true)} />}
-          {points.map((point) => <Marker key={point.id} position={point.coords} icon={createCustomIcon(point.id)} />)}
-          {routes.map((route, index) => (
-            (activeRoute === null || activeRoute === index) && route.points.length > 0 && (
-              <Polyline key={index} positions={route.points} color={route.color} weight={activeRoute === index ? 6 : 4} opacity={activeRoute === index ? 1 : 0.8} />
-            )
+          <MapController centerPos={mapCenter} />
+          
+          {depot && (
+             <Marker position={depot.coords} icon={createCustomIcon('D', 'depot')}>
+               <Tooltip direction="top" offset={[0, -20]} opacity={1} permanent>Central Depot</Tooltip>
+             </Marker>
+          )}
+          
+          {points.map((p, idx) => (
+            <Marker key={p.id} position={p.coords} icon={createCustomIcon(`P${idx+1}`)}>
+               <Tooltip direction="top" offset={[0, -20]} opacity={1} permanent>Point {idx + 1}</Tooltip>
+            </Marker>
+          ))}
+          
+          {routes.map((route, i) => {
+            const isVisible = activeVehicles.length === 0 || activeVehicles.includes(i);
+            if (!isVisible) return null;
+
+            return (
+              <Polyline 
+                key={i} 
+                positions={route.points} 
+                pathOptions={{ 
+                  color: route.color, 
+                  weight: 6,
+                  opacity: 1,
+                  lineCap: 'round',
+                  shadowBlur: 10,
+                  shadowColor: route.color
+                }} 
+              />
+            );
+          })}
+          
+          {trafficMode === "heavy" && trafficHotspots.map(h => (
+            <React.Fragment key={h.id}>
+              <Circle 
+                center={h.coords}
+                pathOptions={{ color: 'red', fillColor: '#ef4444', fillOpacity: 0.4, weight: 0 }}
+                radius={800} 
+              />
+              <Marker 
+                position={h.coords} 
+                icon={L.divIcon({
+                  className: 'traffic-icon',
+                  html: `<div class="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center border-2 border-white shadow-xl animate-pulse"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/></svg></div>`,
+                  iconSize: [32, 32]
+                })}
+              >
+                 <Tooltip direction="top" offset={[0, -20]} opacity={1} permanent>High Congestion</Tooltip>
+              </Marker>
+            </React.Fragment>
           ))}
         </MapContainer>
+        
+        <div className="absolute top-4 right-4 z-[400] flex flex-col gap-2 pointer-events-none">
+          {optimizationResult && (
+             <div className="bg-black/80 backdrop-blur text-white px-4 py-2 rounded-full border border-green-500/30 flex items-center gap-2 shadow-xl">
+               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"/>
+               <span className="text-xs font-bold">OPTIMIZED</span>
+             </div>
+          )}
+        </div>
       </div>
-      {showAnalytics && <AnalyticsModal optimizationResult={optimizationResult} routes={routes} onClose={() => setShowAnalytics(false)} classicalDistance={classicalDistance} trafficData={trafficData} />}
+
+      {showAnalytics && (
+        <AnalyticsModal 
+          optimizationResult={optimizationResult} 
+          routes={routes} 
+          onClose={() => setShowAnalytics(false)} 
+          classicalDistance={classicalDistance}
+        />
+      )}
     </div>
   );
 }
