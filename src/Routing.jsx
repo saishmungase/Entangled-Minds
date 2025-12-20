@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Polyline, useMapEvents, useMap, Tooltip, Circle } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from 'leaflet';
@@ -47,6 +47,14 @@ export default function MultiRouting() {
   const [trafficMode, setTrafficMode] = useState("normal");
 
   const addLog = (msg) => setLogs(prev => [...prev, msg]);
+  useEffect(() => {
+    addLog("🔌 Establishing connection to Quantum Cloud...");
+    warmUpRender();
+  }, []);
+
+  function warmUpRender() {
+    fetch("https://quantum-optimizer.onrender.com", { method: "GET" }).catch(e => console.log("Warming Render..."));
+  }
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -165,23 +173,44 @@ export default function MultiRouting() {
       setClassicalDistance(classicDist * 1.6); 
 
       addLog(`🚀 Sending to Quantum API (${trafficMode} mode)...`);
-      
-      const res = await fetch("https://quantum-optimizer.onrender.com/api/optimize", { 
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          locations: backendLocations, 
-          num_vehicles: numVehicles,
-          traffic_intensity: trafficMode
-        })
-      });
 
-      if (!res.ok) throw new Error("Backend Connection Failed");
+      const payload = {
+        locations: backendLocations,
+        num_vehicles: numVehicles,
+        traffic_intensity: trafficMode,
+      };
+
+      const railwayURL = "https://quantum-vrp-production.up.railway.app/api/optimize";
+      const renderURL = "https://quantum-optimizer.onrender.com/api/optimize";
+
+      let res;
+      let source = "Railway";
       
+      try {
+        res = await fetch(railwayURL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) throw new Error("Railway failed");
+      } catch (railwayErr) {
+        addLog("⚠️ Railway unavailable — switching to Render backup...");
+        
+        res = await fetch(renderURL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) throw new Error("All backend services failed.");
+        source = "Render";
+      }
+
       const data = await res.json();
       setOptimizationResult(data);
-      addLog(`✅ Solution Found via: ${data.solution_method}`);
-
+      addLog(`✅ Solution Found via: ${source} Cluster`);
+      
       const processedRoutes = [];
       
       for (let v = 0; v < data.routes.length; v++) {
@@ -205,12 +234,9 @@ export default function MultiRouting() {
               routeCoordinates.push([start.lat, start.lng], [end.lat, end.lng]);
             }
           } catch (e) {
-            if(e){
-              console.log("Just need some update !")
-            }
             routeCoordinates.push([start.lat, start.lng], [end.lat, end.lng]);
           }
-          await new Promise(r => setTimeout(r, 200)); 
+          await new Promise(r => setTimeout(r, 100)); 
         }
 
         processedRoutes.push({

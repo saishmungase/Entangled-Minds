@@ -1,4 +1,4 @@
-import React, { useRef } from "react"
+import React, { useEffect, useRef } from "react"
 import { motion, useScroll, useTransform } from "framer-motion"
 import {
   Zap,
@@ -143,6 +143,44 @@ export default function LandingPage() {
       description: "The Visionary. While the boys struggle with colors, she brings the precision. Designed the posters and visual identity." 
     },
   ];
+
+  useEffect(() => {
+    if (sessionStorage.getItem("backend-warmed")) return
+    sessionStorage.setItem("backend-warmed", "true")
+
+    async function preStart() {
+      const services = [
+        {
+          name: "Backend-1 (Railway)",
+          url: "https://quantum-vrp-production.up.railway.app",
+        },
+        {
+          name: "Backend-2 (Render)",
+          url: "https://quantum-optimizer.onrender.com",
+        },
+      ]
+
+      const requests = services.map(service =>
+        fetch(service.url)
+          .then(res => ({ name: service.name, ok: res.ok }))
+          .catch(() => ({ name: service.name, ok: false }))
+      )
+
+      const results = await Promise.allSettled(requests)
+
+      results.forEach((result, i) => {
+        const name = services[i].name
+
+        if (result.status === "fulfilled" && result.value.ok) {
+          console.log(`${name} is ACTIVE ✅`)
+        } else {
+          console.log(`${name} is UNAVAILABLE ⚠️`)
+        }
+      })
+    }
+
+    preStart()
+  }, [])
 
   return (
     <div ref={ref} className="min-h-screen bg-[#050505] text-white selection:bg-indigo-500/30 overflow-x-hidden font-sans">
