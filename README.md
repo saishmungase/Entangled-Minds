@@ -2,8 +2,6 @@
 
 A cutting-edge navigation application that leverages quantum-inspired algorithms for optimal route finding. This project demonstrates the potential of quantum computing principles in solving real-world routing problems.
 
-![Entangle Minds](screenshot.png)
-
 ## Features
 
 ### 🌟 Key Features
@@ -117,9 +115,9 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Contact
 
-Your Name - [@yourtwitter](https://twitter.com/yourtwitter)
-Project Link: [https://github.com/yourusername/entangle-minds](https://github.com/yourusername/entangle-minds)
+Your Name - [@yourtwitter](https://x.com/saishmungase)
+Project Link: [https://github.com/saishmungase/entangle-minds](https://github.com/saishmungase/entangle-minds)
 
 ---
 
-Made with ⚛️ by [Your Name/Team Name]
+Made with ⚛️ by SAISH
