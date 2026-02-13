@@ -117,9 +117,9 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Contact
 
-Your Name - [@yourtwitter](https://twitter.com/yourtwitter)
-Project Link: [https://github.com/yourusername/entangle-minds](https://github.com/yourusername/entangle-minds)
+Your Name - [@yourtwitter](https://x.com/saishmungase)
+Project Link: [https://github.com/saishmungase/entangle-minds](https://github.com/saishmungase/entangle-minds)
 
 ---
 
-Made with ⚛️ by [Your Name/Team Name]
+Made with ⚛️ by SAISH
