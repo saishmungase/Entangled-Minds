@@ -101,47 +101,26 @@ export default function LandingPage() {
 
   const teamMembers = [
     { 
-      name: "Piyush Agrawal", 
-      role: "Team Lead", 
-      image: "/members/temp.jpeg",
-      icon: Users,
-      description: "The Captain. Ensures the team's vision aligns with execution. Leads strategy and keeps the project timeline on track." 
-    },
-    { 
       name: "Saish Mungase", 
       role: "Full Stack Architect", 
-      image: "/members/temp.jpeg", 
+      image: "", 
       icon: Code2,
       description: "The Builder. Engineered the complete ecosystem—Frontend, Backend, and the core Quantum Hybrid Model." 
     },
     { 
       name: "Meet Bhavsar", 
       role: "Research & Operations", 
-      image: "/members/temp.jpeg", 
+      image: "", 
       icon: MessageSquare,
       description: "The Bridge. Manages communications with faculties and leads the deep-tech research behind our quantum approach." 
     },
     { 
       name: "Rambabu Singh", 
       role: "Quantum Model Engineer", 
-      image: "/members/temp.jpeg", 
+      image: "", 
       icon: Atom,
       description: "The Core. Collaborated closely on the quantum modeling, helping translate theoretical physics into Python logic." 
-    },
-    { 
-      name: "Ansh Mishra", 
-      role: "Algorithm Specialist", 
-      image: "/members/temp.jpeg", 
-      icon: BrainCircuit,
-      description: "The Brain. DSA expert who optimized the algorithmic efficiency. Saish's 'Study Buddy' for complex logic implementation." 
-    },
-    { 
-      name: "Palak Singh", 
-      role: "Creative Lead (UI/UX)", 
-      image: "/members/temp.jpeg", 
-      icon: Palette,
-      description: "The Visionary. While the boys struggle with colors, she brings the precision. Designed the posters and visual identity." 
-    },
+    }
   ];
 
   useEffect(() => {
@@ -254,9 +233,6 @@ export default function LandingPage() {
             <GlowingButton variant="glow" onClick={() => window.location.href='/routing'}>
               <Zap size={20} fill="currentColor" /> Launch Quantum Router
             </GlowingButton>
-            <GlowingButton variant="outline" onClick={() => document.getElementById('research').scrollIntoView({ behavior: 'smooth' })}>
-              <FileText size={20} /> View Research
-            </GlowingButton>
           </motion.div>
 
           <div className="grid grid-cols-3 gap-8 mt-24 border-t border-white/10 pt-12">
@@ -352,52 +328,6 @@ export default function LandingPage() {
             {teamMembers.map((member, i) => (
               <TeamMember key={i} {...member} delay={i * 0.1} />
             ))}
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-12">
-            <div className="bg-gradient-to-br from-indigo-950/30 to-gray-900/30 p-8 rounded-3xl border border-indigo-500/20">
-              <h3 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                <Users className="text-indigo-400" /> Mentorship
-              </h3>
-              <div className="space-y-4">
-                <div className="flex items-center gap-4 p-4 bg-gray-800/50 rounded-xl">
-                  <div className="w-12 h-12 bg-indigo-500 rounded-full flex items-center justify-center font-bold text-white">K</div>
-                  <div>
-                    <div className="font-bold text-white">Prof. Kiran Patil</div>
-                    <div className="text-sm text-indigo-300">SPOC & Project Guide</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 p-4 bg-gray-800/50 rounded-xl">
-                  <div className="w-12 h-12 bg-purple-500 rounded-full flex items-center justify-center font-bold text-white">S</div>
-                  <div>
-                    <div className="font-bold text-white">Prof. Sarita Patil</div>
-                    <div className="text-sm text-purple-300">Technical Mentor</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-gray-900/30 to-indigo-950/30 p-8 rounded-3xl border border-gray-700/50">
-              <h3 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                <Award className="text-yellow-400" /> Department Leadership
-              </h3>
-              <div className="space-y-4">
-                <div className="flex items-center gap-4 p-4 bg-gray-800/50 rounded-xl">
-                  <div className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center font-bold text-white">Dr</div>
-                  <div>
-                    <div className="font-bold text-white">Dr. Simran Khiani</div>
-                    <div className="text-sm text-gray-400">Head – Dept of Computer Engineering</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 p-4 bg-gray-800/50 rounded-xl">
-                  <div className="w-12 h-12 bg-gray-700 rounded-full flex items-center justify-center font-bold text-white">Dr</div>
-                  <div>
-                    <div className="font-bold text-white">Dr. R. D. Kharadkar</div>
-                    <div className="text-sm text-gray-400">Director</div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </section>
