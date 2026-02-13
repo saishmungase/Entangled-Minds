@@ -1,8 +1,8 @@
-# Entangle Minds - Quantum Navigation System
+# Q-Fleet - Quantum Navigation System
 
 A cutting-edge navigation application that leverages quantum-inspired algorithms for optimal route finding. This project demonstrates the potential of quantum computing principles in solving real-world routing problems.
 
-![Entangle Minds](screenshot.png)
+![Q-Fleet](screenshot.png)
 
 ## Features
 

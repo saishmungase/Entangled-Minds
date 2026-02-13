@@ -231,8 +231,8 @@ export default function LandingPage() {
             animate={{ opacity: 1, y: 0 }}
             className="text-6xl md:text-8xl font-black tracking-tighter mb-6 bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-gray-500"
           >
-            ENTANGLE <br className="hidden md:block"/>
-            <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent animate-gradient">MINDS</span>
+            Q-
+            <span className="bg-gradient-to-r from-indigo-400 via-purple-400 to-indigo-400 bg-clip-text text-transparent animate-gradient">Fleet</span>
           </motion.h1>
 
           <motion.p 
@@ -289,7 +289,7 @@ export default function LandingPage() {
                  <h2 className="text-3xl font-bold">Our Motive</h2>
               </div>
               <p className="text-lg text-gray-300 leading-relaxed mb-6">
-                Current logistics algorithms hit a wall when complexity scales. The "Entangle Minds" initiative was born from the desire to break this wall.
+                Current logistics algorithms hit a wall when complexity scales. The "Q-Fleet" initiative was born from the desire to break this wall.
               </p>
               <p className="text-lg text-gray-300 leading-relaxed mb-8">
                 By leveraging <strong>Quantum Annealing</strong> and <strong>Hybrid Solvers</strong>, we aim to reduce carbon footprints, optimize delivery times, and prove that quantum computing isn't just theory—it's the future of logistics.
@@ -341,7 +341,7 @@ export default function LandingPage() {
             className="text-center mb-20"
           >
             <span className="text-indigo-500 font-mono tracking-wider text-sm">THE INNOVATORS</span>
-            <h2 className="text-5xl font-bold mt-2 mb-6">Entangle Minds Team</h2>
+            <h2 className="text-5xl font-bold mt-2 mb-6">Q-Fleet Team</h2>
             <div className="inline-flex items-center gap-2 px-6 py-3 bg-yellow-500/10 border border-yellow-500/30 rounded-full text-yellow-300">
               <Award size={18} />
               <span>Selected for AQVH Grand Finale - Amravati Quantum Valley Hackathon</span>
@@ -450,12 +450,12 @@ export default function LandingPage() {
               <Atom className="text-white" size={24} />
             </div>
             <div>
-              <div className="text-xl font-bold text-white">Entangle Minds</div>
+              <div className="text-xl font-bold text-white">Q-Fleet</div>
               <div className="text-xs text-gray-400">Department of Computer Engineering</div>
             </div>
           </div>
           <div className="text-gray-500 text-sm text-center md:text-right">
-            <p>© 2025 Entangle Minds. All rights reserved.</p>
+            <p>© 2025 Q-Fleet. All rights reserved.</p>
             <p className="mt-1">Built with ❤️ for AQVH Hackathon</p>
           </div>
         </div>
