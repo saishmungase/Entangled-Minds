@@ -350,7 +350,7 @@ export default function LandingPage() {
                 <h3 className="text-xl font-bold">Research Paper</h3>
                 <p className="text-sm text-gray-500 mt-1">Technical Implementation of Hybrid Quantum VRP</p>
               </div>
-              <a href="../report.pdf" download="report.pdf" className="mt-4 flex items-center gap-2 text-sm font-bold text-gray-300 group-hover:text-white transition-colors">
+              <a href="/report.pdf" download="report.pdf" className="mt-4 flex items-center gap-2 text-sm font-bold text-gray-300 group-hover:text-white transition-colors">
                 <Download size={16} /> Download PDF
               </a>
             </motion.div>
@@ -366,7 +366,7 @@ export default function LandingPage() {
                 <h3 className="text-xl font-bold">Project Poster</h3>
                 <p className="text-sm text-gray-500 mt-1">Visual Overview & Hackathon Presentation</p>
               </div>
-              <a href="../poster.png" download="poster.png"  className="mt-4 flex items-center gap-2 text-sm font-bold text-gray-300 group-hover:text-white transition-colors">
+              <a href="/poster.png" download="poster.png"  className="mt-4 flex items-center gap-2 text-sm font-bold text-gray-300 group-hover:text-white transition-colors">
                 <Download size={16} /> Download Image
               </a>
             </motion.div>
