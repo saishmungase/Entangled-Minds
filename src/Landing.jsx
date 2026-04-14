@@ -103,25 +103,32 @@ export default function LandingPage() {
   const teamMembers = [
     { 
       name: "Saish Mungase", 
-      role: "Full Stack Architect", 
+      role: "B53", 
       image: "", 
       icon: Code2,
-      description: "The Builder. Engineered the complete ecosystem—Frontend, Backend, and the core Quantum Hybrid Model." 
+      description: "" 
     },
     { 
-      name: "Meet Bhavsar", 
-      role: "Research & Operations", 
+      name: "Saksham Sharma", 
+      role: "B54", 
       image: "", 
       icon: MessageSquare,
-      description: "The Bridge. Manages communications with faculties and leads the deep-tech research behind our quantum approach." 
+      description: "" 
     },
     { 
       name: "Rambabu Singh", 
-      role: "Quantum Model Engineer", 
+      role: "B42", 
       image: "", 
       icon: Atom,
-      description: "The Core. Collaborated closely on the quantum modeling, helping translate theoretical physics into Python logic." 
-    }
+      description: "" 
+    },
+    { 
+      name: "Piyush Agrawal", 
+      role: "B34", 
+      image: "", 
+      icon: Code2,
+      description: "" 
+    },
   ];
 
   useEffect(() => {
